@@ -2,18 +2,8 @@ import { env } from 'cloudflare:workers';
 
 import { createMcpAgent } from '@cloudflare/playwright-mcp';
 
-// Check if BROWSER binding is available
-let playwrightMCP: ReturnType<typeof createMcpAgent> | null = null;
-
-try {
-  if (env.BROWSER) {
-    playwrightMCP = createMcpAgent(env.BROWSER);
-  } else {
-    console.error('BROWSER binding not found in env');
-  }
-} catch (e) {
-  console.error('Failed to create Playwright MCP agent:', e);
-}
+// Create and export the Playwright MCP agent as required by wrangler
+export const PlaywrightMCP = createMcpAgent(env.BROWSER);
 
 // CORS headers for cross-origin requests
 const CORS_HEADERS = {
@@ -34,22 +24,10 @@ export default {
     switch (pathname) {
       case '/sse':
       case '/sse/message':
-        if (!playwrightMCP) {
-          return new Response(JSON.stringify({ error: 'BROWSER binding not configured' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-          });
-        }
-        return playwrightMCP.serveSSE('/sse').fetch(request, env, ctx);
+        return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
-        if (!playwrightMCP) {
-          return new Response(JSON.stringify({ error: 'BROWSER binding not configured' }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
-          });
-        }
         try {
-          const mcpResponse = await playwrightMCP.serve('/mcp').fetch(request, env, ctx);
+          const mcpResponse = await PlaywrightMCP.serve('/mcp').fetch(request, env, ctx);
           const bodyText = await mcpResponse.text();
           return new Response(bodyText, {
             status: mcpResponse.status,
@@ -67,8 +45,7 @@ export default {
       case '/health':
         return new Response(JSON.stringify({ 
           status: 'ok', 
-          hasBrowser: !!playwrightMCP,
-          hasBrowserBinding: !!env.BROWSER 
+          hasBrowser: !!env.BROWSER 
         }), {
           headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
         });
