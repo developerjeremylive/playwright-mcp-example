@@ -1,7 +1,7 @@
 {
   "name": "playwright-mcp-example",
   "version": "0.0.1-next",
-  "description": "Cloudflare Playwright Tools for MCP - Template",
+  "description": "Cloudflare Playwright Tools for MCP",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/cloudflare/playwright-mcp.git"
@@ -12,7 +12,7 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "build": "tsc",
+    "build": "wrangler deploy --dry-run",
     "deploy": "wrangler deploy"
   },
   "dependencies": {
