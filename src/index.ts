@@ -12,7 +12,7 @@ const CORS_HEADERS = {
 };
 
 export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
@@ -25,17 +25,28 @@ export default {
       case '/sse/message':
         return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
-        // Add CORS headers to MCP responses
-        const mcpResponse = PlaywrightMCP.serve('/mcp').fetch(request, env, ctx);
-        return new Response(mcpResponse.body, {
-          status: mcpResponse.status,
-          headers: {
-            ...Object.fromEntries(mcpResponse.headers),
-            ...CORS_HEADERS,
-          },
-        });
+        try {
+          // Add CORS headers to MCP responses
+          const mcpResponse = await PlaywrightMCP.serve('/mcp').fetch(request, env, ctx);
+          
+          // Read the response body
+          const bodyText = await mcpResponse.text();
+          
+          return new Response(bodyText, {
+            status: mcpResponse.status,
+            headers: {
+              'Content-Type': 'application/json',
+              ...CORS_HEADERS,
+            },
+          });
+        } catch (error) {
+          return new Response(JSON.stringify({ error: String(error) }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+          });
+        }
       default:
-        return new Response('Not Found', { status: 404 });
+        return new Response('Not Found', { status: 404, headers: CORS_HEADERS });
     }
   },
 };
