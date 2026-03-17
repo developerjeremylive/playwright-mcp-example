@@ -9,7 +9,7 @@ export const PlaywrightMCP = createMcpAgent(env.BROWSER);
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept',
 };
 
 export default {
@@ -27,12 +27,28 @@ export default {
         return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
         try {
-          const mcpResponse = await PlaywrightMCP.serve('/mcp').fetch(request, env, ctx);
+          const mcpServer = PlaywrightMCP.serve('/mcp');
+          
+          // Handle GET request for server capabilities (MCP discovery)
+          if (request.method === 'GET') {
+            // Return empty object or capabilities - MCP clients expect a response
+            return new Response(JSON.stringify({}), {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...CORS_HEADERS,
+              },
+            });
+          }
+          
+          const mcpResponse = await mcpServer.fetch(request, env, ctx);
           const bodyText = await mcpResponse.text();
           return new Response(bodyText, {
             status: mcpResponse.status,
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json',
               ...CORS_HEADERS,
             },
           });
