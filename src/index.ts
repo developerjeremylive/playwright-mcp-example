@@ -38,6 +38,27 @@ export default {
           }
         );
 
+      case '/install':
+        // MCP install endpoint - returns server info for mcporter
+        return new Response(JSON.stringify({
+          name: 'playwright-mcp',
+          description: 'Playwright browser automation via Cloudflare',
+          version: '1.0.0',
+          tools: [
+            { name: 'browser_navigate', description: 'Navigate to a URL', inputSchema: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } },
+            { name: 'browser_snapshot', description: 'Get page accessibility snapshot', inputSchema: { type: 'object', properties: {} } },
+            { name: 'browser_click', description: 'Click an element', inputSchema: { type: 'object', properties: { element: { type: 'string' } } } },
+            { name: 'browser_type', description: 'Type into an element', inputSchema: { type: 'object', properties: { element: { type: 'string' }, text: { type: 'string' } } } },
+            { name: 'browser_take_screenshot', description: 'Take a screenshot', inputSchema: { type: 'object', properties: {} } },
+            { name: 'browser_go_back', description: 'Navigate back', inputSchema: { type: 'object', properties: {} } },
+            { name: 'browser_go_forward', description: 'Navigate forward', inputSchema: { type: 'object', properties: {} } },
+            { name: 'browser_scroll', description: 'Scroll the page', inputSchema: { type: 'object', properties: { scrollTop: { type: 'number' } } } },
+            { name: 'browser_evaluate', description: 'Run JavaScript', inputSchema: { type: 'object', properties: { script: { type: 'string' } } } },
+          ]
+        }), {
+          headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+        });
+
       case '/mcp':
       case '/mcp/message':
         return this.handleMcpRequest(request, env, ctx);
