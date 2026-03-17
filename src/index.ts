@@ -20,8 +20,14 @@ class BrowserController {
   
   async init() {
     if (!this.browser) {
-      console.log('[Browser] Launching browser...');
-      this.browser = await puppeteer.launch(this.env.BROWSER);
+      console.log('[Browser] Launching browser with binding:', typeof this.env.BROWSER);
+      try {
+        this.browser = await puppeteer.launch(this.env.BROWSER);
+        console.log('[Browser] Browser launched successfully');
+      } catch (err) {
+        console.error('[Browser] Failed to launch:', err);
+        throw err;
+      }
     }
     return this.browser;
   }
