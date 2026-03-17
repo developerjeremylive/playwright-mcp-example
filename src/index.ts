@@ -16,7 +16,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const { pathname } = new URL(request.url);
 
-    console.log(`[MCP] ${request.method} ${pathname}`);
+    console.log(`[MCP] ${request.method} ${pathname}`, request.headers.get('Accept'));
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
@@ -29,7 +29,10 @@ export default {
         return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
         try {
-          // Handle GET for MCP discovery (what most MCP UIs use)
+          // Get the Accept header
+          const acceptHeader = request.headers.get('Accept') || 'application/json';
+          
+          // Handle GET for MCP discovery
           if (request.method === 'GET') {
             return new Response(JSON.stringify({ 
               name: 'playwright-mcp',
@@ -39,7 +42,7 @@ export default {
               status: 200,
               headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                'Accept': 'application/json, text/event-stream',
                 ...CORS_HEADERS,
               },
             });
@@ -56,12 +59,12 @@ export default {
             
             console.log('[MCP] POST body:', body);
             
-            // Create a new request with proper body
+            // Create a new request with both Accept types
             const mcpRequest = new Request(request.url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
+                'Accept': 'application/json, text/event-stream',
               },
               body: body,
             });
@@ -95,7 +98,7 @@ export default {
             error: errorMsg, 
             stack: error?.stack 
           }), {
-            status: 200, // Return 200 even on error so the UI can parse the JSON
+            status: 200,
             headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
           });
         }
@@ -106,7 +109,10 @@ export default {
             const mcpServer = PlaywrightMCP.serve('/mcp');
             const mockRequest = new Request(request.url, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/event-stream',
+              },
               body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
             });
             const mcpResponse = await mcpServer.fetch(mockRequest, env, ctx);
@@ -127,7 +133,7 @@ export default {
         return new Response(JSON.stringify({ 
           status: 'ok', 
           hasBrowser: !!env.BROWSER,
-          version: '3'
+          version: '4'
         }), {
           headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
         });
