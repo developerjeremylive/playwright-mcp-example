@@ -5,3 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [browser]
 binding = "BROWSER"
+
+[[migrations]]
+tag = "v2"
+deleted_classes = ["PlaywrightMCP"]
