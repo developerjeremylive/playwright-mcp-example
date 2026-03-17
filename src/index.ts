@@ -148,8 +148,14 @@ export default {
         }
         
         // For tools/call, we need to handle it directly since SSE won't work via HTTP
-        if (jsonBody.method === 'tools/call' && env.BROWSER) {
-          const { name: toolName, arguments: toolArgs } = jsonBody.params || {};
+        if (jsonBody.method === 'tools/call') {
+          let toolName = '';
+          let toolArgs = {};
+          
+          if (jsonBody.params && typeof jsonBody.params === 'object') {
+            toolName = jsonBody.params.name || '';
+            toolArgs = jsonBody.params.arguments || {};
+          }
           
           console.log(`[MCP] Calling tool: ${toolName} with args:`, toolArgs);
           
