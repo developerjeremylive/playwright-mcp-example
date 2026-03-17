@@ -16,7 +16,10 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
     const { pathname } = new URL(request.url);
 
-    console.log(`[MCP] ${request.method} ${pathname}`, request.headers.get('Accept'));
+    // Log all headers
+    const headersObj: Record<string, string> = {};
+    request.headers.forEach((v, k) => headersObj[k] = v);
+    console.log(`[MCP] ${request.method} ${pathname}`, JSON.stringify(headersObj));
 
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
@@ -29,9 +32,6 @@ export default {
         return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
         try {
-          // Get the Accept header
-          const acceptHeader = request.headers.get('Accept') || 'application/json';
-          
           // Handle GET for MCP discovery
           if (request.method === 'GET') {
             return new Response(JSON.stringify({ 
@@ -59,21 +59,31 @@ export default {
             
             console.log('[MCP] POST body:', body);
             
-            // Create a new request with both Accept types
+            // Parse and validate JSON-RPC
+            let jsonBody: any;
+            try {
+              jsonBody = JSON.parse(body);
+              console.log('[MCP] JSON parsed:', JSON.stringify(jsonBody));
+            } catch (e) {
+              console.log('[MCP] JSON parse error, using raw body');
+              jsonBody = { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} };
+            }
+            
+            // Create MCP request with proper Accept header
             const mcpRequest = new Request(request.url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json, text/event-stream',
               },
-              body: body,
+              body: JSON.stringify(jsonBody),
             });
             
             const mcpServer = PlaywrightMCP.serve('/mcp');
             const mcpResponse = await mcpServer.fetch(mcpRequest, env, ctx);
             
             const responseText = await mcpResponse.text();
-            console.log('[MCP] Response:', mcpResponse.status, responseText.substring(0, 200));
+            console.log('[MCP] Response:', mcpResponse.status, responseText.substring(0, 300));
             
             return new Response(responseText, {
               status: mcpResponse.status || 200,
@@ -85,7 +95,6 @@ export default {
             });
           }
           
-          // Method not allowed
           return new Response(JSON.stringify({ error: 'Method not allowed' }), {
             status: 405,
             headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
@@ -103,7 +112,6 @@ export default {
           });
         }
       case '/tools':
-        // Alias for /mcp tools/list
         if (request.method === 'GET' || request.method === 'POST') {
           try {
             const mcpServer = PlaywrightMCP.serve('/mcp');
@@ -133,7 +141,7 @@ export default {
         return new Response(JSON.stringify({ 
           status: 'ok', 
           hasBrowser: !!env.BROWSER,
-          version: '4'
+          version: '5'
         }), {
           headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
         });
