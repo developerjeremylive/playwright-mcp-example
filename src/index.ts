@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import puppeteer from '@cloudflare/puppeteer';
 
 // CORS headers for cross-origin requests
 const CORS_HEADERS = {
@@ -19,8 +20,8 @@ class BrowserController {
   
   async init() {
     if (!this.browser) {
-      console.log('[Browser] Initializing browser...');
-      this.browser = await env.BROWSER.launch();
+      console.log('[Browser] Launching browser...');
+      this.browser = await puppeteer.launch(this.env.BROWSER);
     }
     return this.browser;
   }
@@ -28,8 +29,7 @@ class BrowserController {
   async getPage() {
     if (!this.page) {
       const browser = await this.init();
-      const context = await browser.createBrowserContext();
-      this.page = await context.newPage();
+      this.page = await browser.newPage();
     }
     return this.page;
   }
