@@ -9,17 +9,23 @@ export const PlaywrightMCP = createMcpAgent(env.BROWSER);
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Accept',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept, Authorization',
 };
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const { pathname, searchParams } = new URL(request.url);
+
+    // Log the request for debugging
+    console.log(`[MCP] ${request.method} ${pathname}`, {
+      accept: request.headers.get('Accept'),
+      contentType: request.headers.get('Content-Type'),
+    });
+
     // Handle CORS preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: CORS_HEADERS });
     }
-
-    const { pathname } = new URL(request.url);
 
     switch (pathname) {
       case '/sse':
@@ -27,25 +33,33 @@ export default {
         return PlaywrightMCP.serveSSE('/sse').fetch(request, env, ctx);
       case '/mcp':
         try {
-          const mcpServer = PlaywrightMCP.serve('/mcp');
+          // Clone the request to read body for POST
+          let requestClone = request;
+          let bodyText = '';
           
-          // Handle GET request for server capabilities (MCP discovery)
-          if (request.method === 'GET') {
-            // Return empty object or capabilities - MCP clients expect a response
-            return new Response(JSON.stringify({}), {
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                ...CORS_HEADERS,
-              },
-            });
+          if (request.method === 'POST') {
+            try {
+              const cloned = request.clone();
+              bodyText = await cloned.text();
+              // Create a new request with the body
+              requestClone = new Request(request.url, {
+                method: 'POST',
+                headers: request.headers,
+                body: bodyText,
+              });
+            } catch (e) {
+              console.error('[MCP] Failed to read body:', e);
+            }
           }
           
-          const mcpResponse = await mcpServer.fetch(request, env, ctx);
-          const bodyText = await mcpResponse.text();
-          return new Response(bodyText, {
-            status: mcpResponse.status,
+          const mcpServer = PlaywrightMCP.serve('/mcp');
+          const mcpResponse = await mcpServer.fetch(requestClone, env, ctx);
+          
+          const responseText = await mcpResponse.text();
+          console.log(`[MCP] Response status: ${mcpResponse.status}, body: ${responseText.substring(0, 200)}`);
+          
+          return new Response(responseText, {
+            status: mcpResponse.status || 200,
             headers: {
               'Content-Type': 'application/json',
               'Accept': 'application/json',
@@ -53,7 +67,13 @@ export default {
             },
           });
         } catch (error) {
-          return new Response(JSON.stringify({ error: String(error), stack: error?.stack }), {
+          const errorMsg = String(error);
+          console.error('[MCP] Error:', errorMsg);
+          return new Response(JSON.stringify({ 
+            error: errorMsg, 
+            stack: error?.stack,
+            message: 'MCP server error'
+          }), {
             status: 500,
             headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
           });
@@ -61,7 +81,8 @@ export default {
       case '/health':
         return new Response(JSON.stringify({ 
           status: 'ok', 
-          hasBrowser: !!env.BROWSER 
+          hasBrowser: !!env.BROWSER,
+          version: '2'
         }), {
           headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
         });
